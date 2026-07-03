@@ -1,0 +1,42 @@
+# Prerequisites
+*.d
+*.obj
+*.o
+*.a
+*.lib
+
+# Executables
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Folders
+build/
+build-*/
+installer/
+bin/
+lib/
+out/
+
+# IDE/Qt specific
+.vs/
+.vscode/
+.idea/
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+Makefile
+*.user
+*.user.*
+*.cbp
+*.ncb
+*.suo
+*.sln
+*.sdf
+*.opensdf
+*.qm
+*.tmp
+
+# InnoSetup
+*.iss

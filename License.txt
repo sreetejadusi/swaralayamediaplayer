@@ -1,0 +1,19 @@
+Swaralaya Media Player License Agreement
+
+This software is provided for FREE, PERSONAL, and NON-COMMERCIAL USE ONLY.
+
+By installing, copying, or otherwise using this software, you agree to be bound by the terms of this license.
+
+1. PERMITTED USE
+You may use this software for personal, non-commercial purposes. You may not use this software for any commercial purpose, including but not limited to business operations, paid services, or commercial public performances.
+
+2. RESTRICTIONS
+You may not:
+- Sell, rent, lease, or sub-license the software.
+- Reverse engineer, decompile, or disassemble the software.
+- Use the software in any way that violates applicable laws.
+
+3. NO WARRANTY
+This software is provided "as is" without warranty of any kind, either express or implied. The author shall not be liable for any damages arising from the use of this software.
+
+By clicking "I Accept", you acknowledge that you have read and understood this agreement and agree to its terms.

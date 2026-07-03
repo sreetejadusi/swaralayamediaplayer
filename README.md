@@ -40,42 +40,43 @@ Follow these instructions to compile the Swaralaya Media Player yourself using C
 3. **Qt 6**: Install via the Qt Maintenance Tool. Ensure you install the Desktop component (e.g., MinGW 64-bit or MSVC 64-bit).
 4. **libmpv**: You need the `libmpv` developer files (the DLL, the headers `mpv/client.h`, and the `.a` or `.lib` file).
 
-### Step 1: Setup libmpv
-1. Download a pre-compiled Windows build of `libmpv` that includes developer headers.
-2. Inside the repository root, ensure the following structure exists:
-   ```text
-   third_party/
-     mpv/
-       mpv/
-         client.h (and other mpv headers)
-       mpv.lib (or libmpv.dll.a for MinGW)
-   ```
-3. Ensure the actual `libmpv-2.dll` is available (you will need it to run the executable).
+### How to Compile
 
-### Step 2: Configure with CMake
-Open a terminal (e.g., PowerShell or Command Prompt) and set up your Qt and CMake paths.
+Open a PowerShell window in your project root, and run these steps in order:
+
 ```powershell
+# 1. Create and enter the build directory
 mkdir build
 cd build
-cmake .. -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="C:/Qt/6.x.x/mingw_64"
-```
-*(Note: Replace `6.x.x/mingw_64` with your exact Qt version and compiler toolchain path).*
 
-### Step 3: Build the Project
-Run the build command:
-```powershell
+# 2. Add Qt's CMake and Compiler tools to your temporary system PATH
+$env:PATH += ";C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\CMake_64\bin"
+
+# 3. Configure the CMake project
+# (It connects the project to your Qt installation)
+# NOTE: We include -G "MinGW Makefiles" to ensure CMake uses the proper compiler instead of Visual Studio.
+cmake .. -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="C:/Qt/6.11.1/mingw_64"
+
+# 4. Compile the source code into an executable
 cmake --build . --config Release
+
+# 5. Deploy Qt Dependencies 
+# (This copies all required Qt DLLs alongside your .exe so it can run)
+C:\Qt\6.11.1\mingw_64\bin\windeployqt.exe --compiler-runtime .\SwaralayaMediaPlayer.exe
+
+# 6. Build the Windows Installer (Optional)
+# (This packages everything into SwaralayaMediaPlayer_Setup.exe)
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" ..\setup.iss
 ```
 
-### Step 4: Deploy Qt Dependencies
-Because Qt relies on many dynamically loaded plugins and DLLs, you must use the `windeployqt` tool to copy them into your build folder alongside the executable.
+### How to Clean Up
+
+To completely clean the project, simply delete the `build` folder:
+
 ```powershell
-C:\Qt\6.x.x\mingw_64\bin\windeployqt.exe --compiler-runtime .\SwaralayaMediaPlayer.exe
+# Make sure you are in the project root folder
+cd D:\swaralayaplayer
+
+# Delete the build folder and all its contents
+Remove-Item -Recurse -Force build
 ```
-
-### Step 5: Run the Application
-Finally, copy your `libmpv-2.dll` into the `build` directory next to `SwaralayaMediaPlayer.exe`. 
-You can now run the application!
-
----
-*(Optional) If you have Inno Setup 6 installed, you can compile the `setup.iss` script to generate a distributable Windows Installer.*

@@ -41,6 +41,9 @@ private:
     // Status overlay
     QLabel *m_osdLabel;
     QTimer *m_osdTimer;
+    
+    // Top title label
+    QLabel *m_titleLabel;
 
     // Control Panel Widgets
     QWidget *m_controlPanel;

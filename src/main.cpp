@@ -1,18 +1,44 @@
 #include <QApplication>
 #include <QStyleFactory>
+#include <QIcon>
 #include "UI/MainWindow.h"
+#include <QLocalServer>
+#include <QLocalSocket>
 
 int main(int argc, char *argv[])
 {
     // High DPI support is enabled by default in Qt 6
     QApplication app(argc, argv);
     app.setApplicationName("Swaralaya Media Player");
+    app.setWindowIcon(QIcon(":/app.png"));
     app.setStyle(QStyleFactory::create("Fusion"));
 
     QString filePath;
     if (app.arguments().size() > 1) {
         filePath = app.arguments().at(1);
     }
+
+    QString serverName = "SwaralayaMediaPlayerInstance";
+    
+    QLocalSocket socket;
+    socket.connectToServer(serverName);
+    if (socket.waitForConnected(500)) {
+        // Another instance is already running
+        if (!filePath.isEmpty()) {
+            socket.write(filePath.toUtf8());
+            socket.waitForBytesWritten(500);
+        } else {
+            // Just send a dummy message to bring it to front
+            socket.write("RAISE");
+            socket.waitForBytesWritten(500);
+        }
+        return 0; // Exit since the running instance will handle it
+    }
+
+    // We are the first instance
+    QLocalServer server;
+    server.removeServer(serverName); // Clean up stale socket on crashes
+    server.listen(serverName);
 
     // Premium dark theme QSS
     app.setStyleSheet(R"(
@@ -74,6 +100,21 @@ int main(int argc, char *argv[])
     
     window.resize(1024, 768);
     window.show();
+
+    QObject::connect(&server, &QLocalServer::newConnection, [&server, &window]() {
+        QLocalSocket *client = server.nextPendingConnection();
+        QObject::connect(client, &QLocalSocket::readyRead, [client, &window]() {
+            QByteArray data = client->readAll();
+            QString cmd = QString::fromUtf8(data);
+            if (!cmd.isEmpty() && cmd != "RAISE") {
+                window.openFileFromCommandLine(cmd);
+            }
+            window.showNormal();
+            window.activateWindow();
+            window.raise();
+        });
+        QObject::connect(client, &QLocalSocket::disconnected, client, &QObject::deleteLater);
+    });
 
     return app.exec();
 }

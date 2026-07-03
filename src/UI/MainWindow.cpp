@@ -22,15 +22,21 @@ MainWindow::MainWindow(QWidget *parent)
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
+    m_titleLabel = new QLabel(this);
+    m_titleLabel->setAlignment(Qt::AlignCenter);
+    m_titleLabel->setStyleSheet("QLabel { font-size: 16px; font-weight: bold; padding: 10px; background-color: #121212; color: #E0E0E0; border-bottom: 1px solid #333; }");
+    m_titleLabel->hide();
+
     m_videoWidget = new VideoWidget(this);
+    
+    mainLayout->addWidget(m_titleLabel);
     mainLayout->addWidget(m_videoWidget, 1); // Video takes expanding space
 
     m_player = new PlayerController(this);
     m_player->setWid(m_videoWidget->winId());
 
     connect(m_videoWidget, &VideoWidget::fileDropped, m_player, [this](const QString& filePath) {
-        m_videoWidget->prepareForVideo();
-        m_player->openFile(filePath);
+        openFileFromCommandLine(filePath);
     });
     connect(m_videoWidget, &VideoWidget::openButtonClicked, this, &MainWindow::openFileDialog);
     connect(m_videoWidget, &VideoWidget::clicked, this, [this]() {
@@ -187,6 +193,9 @@ void MainWindow::setupControlPanel()
     controlsLayout->addStretch();
 
     vbox->addLayout(controlsLayout);
+
+    // Initial label sync
+    updateLabels();
 }
 
 void MainWindow::updateLabels()
@@ -229,7 +238,15 @@ void MainWindow::onSeekSliderMoved(int value)
 
 void MainWindow::openFileFromCommandLine(const QString& filePath)
 {
-    m_videoWidget->prepareForVideo();
+    bool isAudio = filePath.endsWith(".mp3", Qt::CaseInsensitive);
+    m_videoWidget->prepareForVideo(isAudio);
+    
+    QFileInfo fi(filePath);
+    m_titleLabel->setText(fi.fileName());
+    if (!isFullScreen()) {
+        m_titleLabel->show();
+    }
+    
     m_player->openFile(filePath);
 }
 
@@ -362,22 +379,23 @@ void MainWindow::toggleFullScreen()
     if (isFullScreen()) {
         showNormal();
         m_controlPanel->show();
+        if (!m_titleLabel->text().isEmpty()) m_titleLabel->show();
         showOnScreenDisplay("Windowed Mode");
     } else {
         showFullScreen();
         m_controlPanel->hide(); // Hide controls in fullscreen for pure video
+        m_titleLabel->hide();   // Hide title in fullscreen
         showOnScreenDisplay("Fullscreen Mode");
     }
 }
 
 void MainWindow::openFileDialog()
 {
-    QString filePath = QFileDialog::getOpenFileName(this, "Open Video File",
+    QString filePath = QFileDialog::getOpenFileName(this, "Open Media File",
         QStandardPaths::writableLocation(QStandardPaths::MoviesLocation),
-        "Video Files (*.mp4 *.mkv *.avi *.mov)");
+        "Media Files (*.mp4 *.mkv *.avi *.mov *.mp3)");
         
     if (!filePath.isEmpty()) {
-        m_videoWidget->prepareForVideo();
-        m_player->openFile(filePath);
+        openFileFromCommandLine(filePath);
     }
 }

@@ -10,8 +10,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # Find Qt 6
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Gui Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Gui Widgets Network)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets Network)
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/src)
@@ -29,6 +29,7 @@ set(SOURCES
     src/UI/VideoWidget.cpp
     src/Settings/Settings.cpp
     src/resources.rc
+    src/resources.qrc
 )
 
 set(HEADERS
@@ -44,5 +45,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::Gui
     Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Network
     ${MPV_LIBRARY}
+)
+
+# Copy libmpv DLL to output directory
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_SOURCE_DIR}/third_party/libmpv-2.dll"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/libmpv-2.dll"
 )

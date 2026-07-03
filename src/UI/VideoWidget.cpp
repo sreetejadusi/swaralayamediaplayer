@@ -56,10 +56,16 @@ void VideoWidget::hideOpenButton()
     }
 }
 
-void VideoWidget::prepareForVideo()
+void VideoWidget::prepareForVideo(bool isAudioOnly)
 {
-    setAttribute(Qt::WA_OpaquePaintEvent, true);
-    setAttribute(Qt::WA_PaintOnScreen, true);
+    m_isAudio = isAudioOnly;
+    if (!m_isAudio) {
+        setAttribute(Qt::WA_OpaquePaintEvent, true);
+        setAttribute(Qt::WA_PaintOnScreen, true);
+    } else {
+        setAttribute(Qt::WA_OpaquePaintEvent, false);
+        setAttribute(Qt::WA_PaintOnScreen, false);
+    }
     hideOpenButton();
     update();
 }
@@ -83,5 +89,16 @@ void VideoWidget::paintEvent(QPaintEvent *event)
     if (!testAttribute(Qt::WA_OpaquePaintEvent)) {
         QPainter painter(this);
         painter.fillRect(rect(), Qt::black);
+
+        if (m_isAudio) {
+            QPixmap pixmap(":/app.png");
+            if (!pixmap.isNull()) {
+                // scale it to a nice size, e.g., 200x200 max
+                pixmap = pixmap.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                int x = (width() - pixmap.width()) / 2;
+                int y = (height() - pixmap.height()) / 2;
+                painter.drawPixmap(x, y, pixmap);
+            }
+        }
     }
 }

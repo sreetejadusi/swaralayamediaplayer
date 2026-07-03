@@ -25,8 +25,9 @@ protected:
 
 public slots:
     void hideOpenButton();
-    void prepareForVideo();
+    void prepareForVideo(bool isAudioOnly = false);
 
 private:
     QPushButton *m_openBtn;
+    bool m_isAudio = false;
 };

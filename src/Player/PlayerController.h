@@ -19,8 +19,12 @@ public:
     void seek(double seconds);
     void seekAbsolute(double seconds);
     
+    void showText(const QString& text, int durationMs = 1300);
+    
     void setVolume(int volume);
     int getVolume() const;
+
+    bool isPaused() const;
 
     void setMute(bool mute);
     bool isMuted() const;
@@ -36,10 +40,14 @@ public:
 
     void setLoudnessTarget(double target);
     double getLoudnessTarget() const;
+    
+    QList<QPair<QString, QString>> getAudioDevices() const;
+    void setAudioDevice(const QString& deviceName);
 
 signals:
     void positionChanged(double position);
     void durationChanged(double duration);
+    void playbackStateChanged(bool isPaused);
 
 private slots:
     void handleMpvEvents();

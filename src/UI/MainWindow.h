@@ -7,6 +7,7 @@ class PlayerController;
 class QLabel;
 class QSlider;
 class QPushButton;
+#include <QComboBox>
 class QTimer;
 
 class MainWindow : public QMainWindow
@@ -21,6 +22,7 @@ public:
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void openFileDialog();
@@ -37,10 +39,6 @@ private slots:
 private:
     VideoWidget *m_videoWidget;
     PlayerController *m_player;
-    
-    // Status overlay
-    QLabel *m_osdLabel;
-    QTimer *m_osdTimer;
     
     // Top title label
     QLabel *m_titleLabel;
@@ -59,4 +57,6 @@ private:
     QLabel *m_pitchLabel;
     QLabel *m_tempoLabel;
     QLabel *m_loudnessLabel;
+    
+    QComboBox *m_audioDeviceCombo;
 };

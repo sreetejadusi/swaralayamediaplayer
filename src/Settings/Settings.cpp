@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <QCoreApplication>
 #include <QDir>
+#include <QStandardPaths>
 
 Settings& Settings::instance()
 {
@@ -18,7 +19,12 @@ Settings::Settings()
 
 QString Settings::settingsFilePath() const
 {
-    return QDir(QCoreApplication::applicationDirPath()).filePath("settings.json");
+    QString path = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    QDir dir(path);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+    return dir.filePath("settings.json");
 }
 
 bool Settings::load()

@@ -2,6 +2,10 @@
 #include "../Settings/Settings.h"
 #include <QDebug>
 #include <QStringList>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QPair>
 
 PlayerController::PlayerController(QObject *parent)
     : QObject(parent)
@@ -30,6 +34,13 @@ PlayerController::PlayerController(QObject *parent)
     // Observe properties
     mpv_observe_property(m_mpv, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "duration", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(m_mpv, 0, "pause", MPV_FORMAT_FLAG);
+
+    // OSD Placement
+    mpv_set_option_string(m_mpv, "osd-level", "0");
+    mpv_set_option_string(m_mpv, "osd-align-x", "right");
+    mpv_set_option_string(m_mpv, "osd-align-y", "top");
+    mpv_set_option_string(m_mpv, "osd-font-size", "40");
 
     // Initialize from Settings
     m_loudnessNorm = Settings::instance().loudnessNormalizationEnabled();
@@ -67,6 +78,14 @@ void PlayerController::togglePlayPause()
     mpv_get_property(m_mpv, "pause", MPV_FORMAT_FLAG, &pause);
     pause = !pause;
     mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &pause);
+}
+
+bool PlayerController::isPaused() const
+{
+    if (!m_mpv) return false;
+    int pause = 0;
+    mpv_get_property(m_mpv, "pause", MPV_FORMAT_FLAG, &pause);
+    return pause != 0;
 }
 
 void PlayerController::stop()
@@ -177,6 +196,49 @@ double PlayerController::getLoudnessTarget() const
     return m_loudnessTarget;
 }
 
+void PlayerController::showText(const QString& text, int durationMs)
+{
+    if (!m_mpv) return;
+    QByteArray baText = text.toUtf8();
+    QByteArray baDuration = QString::number(durationMs).toUtf8();
+    const char *args[] = {"show-text", baText.constData(), baDuration.constData(), nullptr};
+    mpv_command(m_mpv, args);
+}
+
+QList<QPair<QString, QString>> PlayerController::getAudioDevices() const
+{
+    QList<QPair<QString, QString>> devices;
+    if (!m_mpv) return devices;
+    
+    char *audio_devices = mpv_get_property_string(m_mpv, "audio-device-list");
+    if (audio_devices) {
+        QJsonDocument doc = QJsonDocument::fromJson(QByteArray(audio_devices));
+        if (doc.isArray()) {
+            QJsonArray arr = doc.array();
+            for (const QJsonValue& val : arr) {
+                if (val.isObject()) {
+                    QJsonObject obj = val.toObject();
+                    QString name = obj["name"].toString();
+                    QString desc = obj["description"].toString();
+                    devices.append({name, desc});
+                }
+            }
+        }
+        mpv_free(audio_devices);
+    }
+    return devices;
+}
+
+void PlayerController::setAudioDevice(const QString& deviceName)
+{
+    if (!m_mpv) return;
+    QByteArray ba = deviceName.toUtf8();
+    mpv_set_property_string(m_mpv, "audio-device", ba.constData());
+    // Force audio output reload to apply immediately
+    const char *args[] = {"ao-reload", nullptr};
+    mpv_command(m_mpv, args);
+}
+
 void PlayerController::wakeup(void *ctx)
 {
     PlayerController *pc = static_cast<PlayerController*>(ctx);
@@ -197,6 +259,8 @@ void PlayerController::handleMpvEvents()
                 emit positionChanged(*static_cast<double*>(prop->data));
             } else if (qstrcmp(prop->name, "duration") == 0 && prop->format == MPV_FORMAT_DOUBLE) {
                 emit durationChanged(*static_cast<double*>(prop->data));
+            } else if (qstrcmp(prop->name, "pause") == 0 && prop->format == MPV_FORMAT_FLAG) {
+                emit playbackStateChanged(*static_cast<int*>(prop->data) != 0);
             }
         }
     }
@@ -206,24 +270,35 @@ void PlayerController::updateAudioFilters()
 {
     if (!m_mpv) return;
     
+    // Use native mpv speed for perfectly synced, pitch-preserved tempo adjustment
+    mpv_set_property(m_mpv, "speed", MPV_FORMAT_DOUBLE, &m_tempo);
+    
     QStringList filters;
     
     // Dynamic Loudness Normalization
     if (m_loudnessNorm) {
-        // Convert dB to amplitude target if needed by dynaudnorm
-        // dynaudnorm t parameter is amplitude peak, default is 0.0 (0 dBFS)
-        // Wait, t is 0.0 to 1.0. 
-        // 0 dB = 1.0. -15 dB = 0.1778. But users want to use volume offset.
-        // Actually dynaudnorm 'p' is target peak, but a simple way to adjust loudness is just
-        // adding a volume filter after it: lavfi=[dynaudnorm=f=200:g=15,volume=XdB]
         filters << QString("lavfi=[dynaudnorm=f=200:g=15,volume=%1dB]").arg(m_loudnessTarget);
     }
 
-    // High quality pitch and tempo adjustments using rubberband (if available in mpv build)
-    // or fallback to rubberband filter.
-    // In libmpv, rubberband can be applied via af=rubberband
-    if (m_pitch != 1.0 || m_tempo != 1.0) {
-        filters << QString("rubberband=pitch-scale=%1:tempo=%2").arg(m_pitch).arg(m_tempo);
+    // High quality pitch adjustment using native lavfi filters (only if pitch is modified)
+    if (m_pitch != 1.0) {
+        double sr = 48000.0;
+        mpv_get_property(m_mpv, "audio-params/samplerate", MPV_FORMAT_DOUBLE, &sr);
+        if (sr <= 0) sr = 48000.0;
+
+        int rate = static_cast<int>(sr * m_pitch);
+        double t = 1.0 / m_pitch;
+        
+        QString atempoStr;
+        if (t < 0.5) {
+            atempoStr = QString("atempo=0.5,atempo=%1").arg(t * 2.0);
+        } else if (t > 2.0) {
+            atempoStr = QString("atempo=2.0,atempo=%1").arg(t / 2.0);
+        } else {
+            atempoStr = QString("atempo=%1").arg(t);
+        }
+        
+        filters << QString("lavfi=[asetrate=%1,aresample=%2,%3]").arg(rate).arg(static_cast<int>(sr)).arg(atempoStr);
     }
 
     QByteArray ba = filters.join(",").toUtf8();

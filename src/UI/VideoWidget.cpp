@@ -6,6 +6,7 @@
 #include <QUrl>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QLabel>
 
 VideoWidget::VideoWidget(QWidget *parent)
     : QWidget(parent)
@@ -16,11 +17,18 @@ VideoWidget::VideoWidget(QWidget *parent)
     
     // Remove QVBoxLayout and set parent manually
     m_openBtn = new QPushButton("Open Video", this);
+    m_openBtn->setFocusPolicy(Qt::NoFocus);
     m_openBtn->setFixedSize(200, 60);
     m_openBtn->setStyleSheet("QPushButton { font-size: 18px; border-radius: 30px; background-color: #0078D7; color: white; }"
                              "QPushButton:hover { background-color: #005A9E; }"
                              "QPushButton:pressed { background-color: #004275; }");
     connect(m_openBtn, &QPushButton::clicked, this, &VideoWidget::openButtonClicked);
+
+    m_overlayIcon = new QLabel("▶", this);
+    m_overlayIcon->setStyleSheet("QLabel { color: rgba(255, 255, 255, 150); font-size: 120px; background: transparent; }");
+    m_overlayIcon->setAlignment(Qt::AlignCenter);
+    m_overlayIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_overlayIcon->hide();
 
     // Set background to black
     QPalette pal = palette();
@@ -51,7 +59,7 @@ void VideoWidget::dropEvent(QDropEvent *event)
 
 void VideoWidget::hideOpenButton()
 {
-    if (m_openBtn && m_openBtn->isVisible()) {
+    if (m_openBtn) {
         m_openBtn->hide();
     }
 }
@@ -70,10 +78,25 @@ void VideoWidget::prepareForVideo(bool isAudioOnly)
     update();
 }
 
+void VideoWidget::setPausedState(bool paused)
+{
+    if (paused && (!m_openBtn || !m_openBtn->isVisible())) {
+        m_overlayIcon->show();
+    } else {
+        m_overlayIcon->hide();
+    }
+}
+
 void VideoWidget::mousePressEvent(QMouseEvent *event)
 {
     emit clicked();
     QWidget::mousePressEvent(event);
+}
+
+void VideoWidget::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    emit doubleClicked();
+    QWidget::mouseDoubleClickEvent(event);
 }
 
 void VideoWidget::resizeEvent(QResizeEvent *event)
@@ -81,6 +104,9 @@ void VideoWidget::resizeEvent(QResizeEvent *event)
     QWidget::resizeEvent(event);
     if (m_openBtn && m_openBtn->isVisible()) {
         m_openBtn->move((width() - m_openBtn->width()) / 2, (height() - m_openBtn->height()) / 2);
+    }
+    if (m_overlayIcon) {
+        m_overlayIcon->resize(width(), height());
     }
 }
 

@@ -356,6 +356,9 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
             toggleFullScreen();
         }
         break;
+    case Qt::Key_X:
+        close();
+        break;
     case Qt::Key_O:
         m_pitchSlider->setValue(m_pitchSlider->value() - 1);
         showOnScreenDisplay(QString("Pitch: %1x").arg(m_player->getPitch(), 0, 'f', 2));

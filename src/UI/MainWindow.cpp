@@ -11,6 +11,7 @@
 #include <QTimer>
 #include <QSlider>
 #include <QPushButton>
+#include <QSettings>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -61,6 +62,14 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    QSettings settings("Swaralaya", "MediaPlayer");
+    settings.setValue("volume", m_volumeSlider->value());
+    settings.setValue("loudness", m_loudnessSlider->value());
+    QMainWindow::closeEvent(event);
 }
 
 void MainWindow::setupControlPanel()
@@ -130,7 +139,11 @@ void MainWindow::setupControlPanel()
     m_volumeSlider = new QSlider(Qt::Horizontal, this);
     m_volumeSlider->setFocusPolicy(Qt::NoFocus);
     m_volumeSlider->setRange(0, 100);
-    m_volumeSlider->setValue(m_player->getVolume());
+    
+    QSettings settings("Swaralaya", "MediaPlayer");
+    int savedVol = settings.value("volume", 100).toInt();
+    m_volumeSlider->setValue(savedVol);
+    
     m_volumeSlider->setFixedWidth(100);
     m_volumeSlider->setToolTip("Volume (-/=)");
     connect(m_volumeSlider, &QSlider::valueChanged, m_player, &PlayerController::setVolume);
@@ -164,7 +177,10 @@ void MainWindow::setupControlPanel()
     m_loudnessSlider = new QSlider(Qt::Horizontal, this);
     m_loudnessSlider->setFocusPolicy(Qt::NoFocus);
     m_loudnessSlider->setRange(-300, 0); // -30.0 dB to 0.0 dB
-    m_loudnessSlider->setValue(qRound(m_player->getLoudnessTarget() * 10));
+    
+    int savedLoudness = settings.value("loudness", -150).toInt();
+    m_loudnessSlider->setValue(savedLoudness);
+    
     m_loudnessSlider->setFixedWidth(120);
     connect(m_loudnessSlider, &QSlider::valueChanged, this, [this](int value) {
         m_player->setLoudnessTarget(value / 10.0);
@@ -272,6 +288,9 @@ void MainWindow::openFileFromCommandLine(const QString& filePath)
         m_titleLabel->show();
     }
     
+    m_pitchSlider->setValue(100);
+    m_tempoSlider->setValue(100);
+    
     m_player->openFile(filePath);
 }
 
@@ -344,10 +363,19 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
             showOnScreenDisplay(QString("Volume: %1%").arg(m_player->getVolume()));
         }
         break;
-    case Qt::Key_M:
-        m_player->setMute(!m_player->isMuted());
-        showOnScreenDisplay(m_player->isMuted() ? "Muted" : "Unmuted");
+    case Qt::Key_M: {
+        bool isFading = m_player->isFadingMute();
+        bool isMuted = m_player->isMuted();
+        
+        if (isMuted || isFading) {
+            m_player->setMute(false);
+            showOnScreenDisplay("Unmuted");
+        } else {
+            m_player->setMute(true);
+            showOnScreenDisplay("Muting (3s)...");
+        }
         break;
+    }
     case Qt::Key_F:
         toggleFullScreen();
         break;

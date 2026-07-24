@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QString>
 #include <mpv/client.h>
+#include <QTimer>
 
 class PlayerController : public QObject
 {
@@ -28,6 +29,7 @@ public:
 
     void setMute(bool mute);
     bool isMuted() const;
+    bool isFadingMute() const;
 
     void setPitch(double pitch); // 1.0 is normal
     double getPitch() const;
@@ -51,6 +53,7 @@ signals:
 
 private slots:
     void handleMpvEvents();
+    void processMuteFade();
 
 private:
     static void wakeup(void *ctx);
@@ -61,4 +64,9 @@ private:
     double m_tempo = 1.0;
     bool m_loudnessNorm = true;
     double m_loudnessTarget = -15.0; // Default target
+    
+    QTimer *m_muteFadeTimer;
+    int m_fadeVolume = 0;
+    int m_preMuteVolume = 100;
+    bool m_isFadingMute = false;
 };

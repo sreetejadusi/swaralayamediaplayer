@@ -23,6 +23,10 @@ PlayerController::PlayerController(QObject *parent)
     // Default to keep open after playback
     mpv_set_option_string(m_mpv, "keep-open", "yes");
 
+    // Disable mpv's built-in keyboard shortcuts so it doesn't instantly mute on 'M'
+    mpv_set_option_string(m_mpv, "input-default-bindings", "no");
+    mpv_set_option_string(m_mpv, "input-vo-keyboard", "no");
+
     if (mpv_initialize(m_mpv) < 0) {
         qWarning() << "Failed to initialize mpv";
         return;
@@ -45,6 +49,9 @@ PlayerController::PlayerController(QObject *parent)
     // Initialize from Settings
     m_loudnessNorm = Settings::instance().loudnessNormalizationEnabled();
     m_loudnessTarget = Settings::instance().loudnessTarget();
+
+    m_muteFadeTimer = new QTimer(this);
+    connect(m_muteFadeTimer, &QTimer::timeout, this, &PlayerController::processMuteFade);
 
     updateAudioFilters();
 }
@@ -116,6 +123,12 @@ void PlayerController::seekAbsolute(double seconds)
 void PlayerController::setVolume(int volume)
 {
     if (!m_mpv) return;
+    
+    if (m_isFadingMute || isMuted()) {
+        m_preMuteVolume = volume;
+        setMute(false);
+    }
+    
     double vol = volume;
     mpv_set_property(m_mpv, "volume", MPV_FORMAT_DOUBLE, &vol);
 }
@@ -131,8 +144,25 @@ int PlayerController::getVolume() const
 void PlayerController::setMute(bool mute)
 {
     if (!m_mpv) return;
-    int m = mute ? 1 : 0;
-    mpv_set_property(m_mpv, "mute", MPV_FORMAT_FLAG, &m);
+    
+    if (mute) {
+        if (!isMuted() && !m_isFadingMute) {
+            m_preMuteVolume = getVolume();
+            m_fadeVolume = m_preMuteVolume;
+            m_isFadingMute = true;
+            // 3 seconds = 3000ms. Update every 50ms = 60 steps.
+            m_muteFadeTimer->start(50);
+        }
+    } else {
+        m_isFadingMute = false;
+        m_muteFadeTimer->stop();
+        
+        double vol = m_preMuteVolume;
+        mpv_set_property(m_mpv, "volume", MPV_FORMAT_DOUBLE, &vol);
+        
+        int m = 0;
+        mpv_set_property(m_mpv, "mute", MPV_FORMAT_FLAG, &m);
+    }
 }
 
 bool PlayerController::isMuted() const
@@ -141,6 +171,11 @@ bool PlayerController::isMuted() const
     int m = 0;
     mpv_get_property(m_mpv, "mute", MPV_FORMAT_FLAG, &m);
     return m != 0;
+}
+
+bool PlayerController::isFadingMute() const
+{
+    return m_isFadingMute;
 }
 
 void PlayerController::setPitch(double pitch)
@@ -264,6 +299,27 @@ void PlayerController::handleMpvEvents()
             }
         }
     }
+}
+
+void PlayerController::processMuteFade()
+{
+    if (!m_isFadingMute || !m_mpv) return;
+    
+    // We have ~60 steps for 3 seconds. So step is max(1, preMuteVolume / 60)
+    int stepSize = qMax(1, m_preMuteVolume / 60);
+    m_fadeVolume -= stepSize;
+    
+    if (m_fadeVolume <= 0) {
+        m_fadeVolume = 0;
+        m_isFadingMute = false;
+        m_muteFadeTimer->stop();
+        
+        int m = 1;
+        mpv_set_property(m_mpv, "mute", MPV_FORMAT_FLAG, &m);
+    }
+    
+    double vol = m_fadeVolume;
+    mpv_set_property(m_mpv, "volume", MPV_FORMAT_DOUBLE, &vol);
 }
 
 void PlayerController::updateAudioFilters()

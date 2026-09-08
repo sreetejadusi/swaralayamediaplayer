@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database -q || true
+    fi
+    
+    MIME_TYPES="audio/aac audio/flac audio/mp4 audio/mpeg audio/ogg audio/x-matroska video/mp4 video/mpeg video/x-matroska video/x-msvideo video/quicktime video/webm"
+    if [ -n "$SUDO_USER" ] && command -v xdg-mime >/dev/null 2>&1; then
+        for mime in $MIME_TYPES; do
+            su "$SUDO_USER" -c "xdg-mime default swaralayamediaplayer.desktop $mime" || true
+        done
+    fi
+fi
+
+exit 0

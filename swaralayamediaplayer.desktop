@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Swaralaya Media Player
+Comment=High-performance desktop video player for karaoke
+Exec=SwaralayaMediaPlayer %U
+Icon=swaralayamediaplayer
+Terminal=false
+Type=Application
+Categories=AudioVideo;Video;Player;TV;
+MimeType=audio/aac;audio/flac;audio/mp4;audio/mpeg;audio/ogg;audio/x-matroska;video/mp4;video/mpeg;video/x-matroska;video/x-msvideo;video/quicktime;video/webm;

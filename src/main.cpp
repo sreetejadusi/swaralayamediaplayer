@@ -4,11 +4,18 @@
 #include "UI/MainWindow.h"
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QTimer>
 
 int main(int argc, char *argv[])
 {
+
     // High DPI support is enabled by default in Qt 6
     QApplication app(argc, argv);
+    
+    // Force C locale for Qt string formatting to prevent comma decimal separators
+    // which crash ffmpeg lavfi filters
+    QLocale::setDefault(QLocale::c());
+    
     app.setApplicationName("Swaralaya Media Player");
     app.setWindowIcon(QIcon(":/app.png"));
     app.setStyle(QStyleFactory::create("Fusion"));
@@ -94,9 +101,18 @@ int main(int argc, char *argv[])
     )");
 
     MainWindow window;
+    
+#ifdef Q_OS_LINUX
+    if (!filePath.isEmpty()) {
+        QObject::connect(&window, &MainWindow::windowReady, [&window, filePath]() {
+            window.openFileFromCommandLine(filePath);
+        });
+    }
+#else
     if (!filePath.isEmpty()) {
         window.openFileFromCommandLine(filePath);
     }
+#endif
     
     window.resize(1024, 768);
     window.show();

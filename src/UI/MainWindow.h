@@ -19,6 +19,9 @@ public:
     ~MainWindow();
 
     void openFileFromCommandLine(const QString& filePath);
+    
+signals:
+    void windowReady();
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;

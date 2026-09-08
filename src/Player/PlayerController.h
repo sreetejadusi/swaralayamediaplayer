@@ -13,6 +13,9 @@ public:
     ~PlayerController();
 
     void setWid(int64_t wid);
+#ifdef Q_OS_LINUX
+    struct mpv_handle* getMpvHandle() const { return m_mpv; }
+#endif
     void openFile(const QString& filePath);
 
     void togglePlayPause();

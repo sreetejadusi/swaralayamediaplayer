@@ -34,11 +34,18 @@ MainWindow::MainWindow(QWidget *parent)
     mainLayout->addWidget(m_videoWidget, 1); // Video takes expanding space
 
     m_player = new PlayerController(this);
+#ifdef Q_OS_LINUX
+    m_videoWidget->setMpvHandle(m_player->getMpvHandle());
+#else
     m_player->setWid(m_videoWidget->winId());
+#endif
 
     connect(m_videoWidget, &VideoWidget::fileDropped, m_player, [this](const QString& filePath) {
         openFileFromCommandLine(filePath);
     });
+#ifdef Q_OS_LINUX
+    connect(m_videoWidget, &VideoWidget::glInitialized, this, &MainWindow::windowReady);
+#endif
     connect(m_videoWidget, &VideoWidget::openButtonClicked, this, &MainWindow::openFileDialog);
     connect(m_videoWidget, &VideoWidget::clicked, m_player, &PlayerController::togglePlayPause);
     connect(m_videoWidget, &VideoWidget::doubleClicked, this, [this]() {
@@ -62,6 +69,16 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    // Important: Delete VideoWidget first so mpv_render_context is freed 
+    // before mpv_terminate_destroy is called in PlayerController
+    if (m_videoWidget) {
+        delete m_videoWidget;
+        m_videoWidget = nullptr;
+    }
+    if (m_player) {
+        delete m_player;
+        m_player = nullptr;
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

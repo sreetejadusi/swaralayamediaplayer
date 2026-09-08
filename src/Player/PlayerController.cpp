@@ -6,19 +6,46 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QPair>
+#include <locale.h>
+#include <QFile>
+#include <QTextStream>
+#include <QStandardPaths>
+#include <QDir>
+
+static QFile s_logFile;
+static void writeLog(const QString& msg) {
+    if (!s_logFile.isOpen()) {
+        QString logPath = QDir::homePath() + "/.swaralaya_mpv.log";
+        s_logFile.setFileName(logPath);
+        s_logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text);
+    }
+    if (s_logFile.isOpen()) {
+        QTextStream out(&s_logFile);
+        out << msg << "\n";
+        out.flush();
+    }
+}
 
 PlayerController::PlayerController(QObject *parent)
     : QObject(parent)
 {
+    // Qt overrides the C locale, but libmpv requires LC_NUMERIC to be "C"
+    setlocale(LC_NUMERIC, "C");
+    
     m_mpv = mpv_create();
     if (!m_mpv) {
         qWarning() << "Failed to create mpv context";
         return;
     }
 
-    // Enable hardware decoding
+#ifndef Q_OS_LINUX
+    // Enable hardware decoding and specific VO only on Windows
     mpv_set_option_string(m_mpv, "hwdec", "auto");
     mpv_set_option_string(m_mpv, "vo", "gpu");
+#else
+    // MUST force libmpv so it renders to the OpenGL widget instead of spawning a new Wayland window
+    mpv_set_option_string(m_mpv, "vo", "libmpv");
+#endif
     
     // Default to keep open after playback
     mpv_set_option_string(m_mpv, "keep-open", "yes");
@@ -32,6 +59,9 @@ PlayerController::PlayerController(QObject *parent)
         return;
     }
     
+    // Request mpv log messages to diagnose playback failures
+    mpv_request_log_messages(m_mpv, "debug");
+
     // Register wakeup callback for events
     mpv_set_wakeup_callback(m_mpv, wakeup, this);
     
@@ -297,6 +327,11 @@ void PlayerController::handleMpvEvents()
             } else if (qstrcmp(prop->name, "pause") == 0 && prop->format == MPV_FORMAT_FLAG) {
                 emit playbackStateChanged(*static_cast<int*>(prop->data) != 0);
             }
+        } else if (event->event_id == MPV_EVENT_LOG_MESSAGE) {
+            mpv_event_log_message *msg = static_cast<mpv_event_log_message*>(event->data);
+            QString logStr = QString("[mpv] %1 %2 %3").arg(msg->prefix).arg(msg->level).arg(msg->text);
+            qDebug() << logStr;
+            writeLog(logStr);
         }
     }
 }

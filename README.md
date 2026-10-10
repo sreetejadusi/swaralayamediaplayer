@@ -52,32 +52,11 @@ sudo apt install build-essential cmake pkg-config qt6-base-dev qt6-wayland libqt
 
 ### How to Compile on Windows
 
-Open a PowerShell window in your project root, and run these steps in order:
+We've bundled the `libmpv` dependencies and automated the build process. To compile the app, deploy Qt dependencies, and create the Windows `.exe` installer:
 
-```powershell
-# 1. Create and enter the build directory
-mkdir build
-cd build
-
-# 2. Add Qt's CMake and Compiler tools to your temporary system PATH
-$env:PATH += ";C:\Qt\Tools\mingw1310_64\bin;C:\Qt\Tools\CMake_64\bin"
-
-# 3. Configure the CMake project
-# (It connects the project to your Qt installation)
-# NOTE: We include -G "MinGW Makefiles" to ensure CMake uses the proper compiler instead of Visual Studio.
-cmake .. -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH="C:/Qt/6.11.1/mingw_64"
-
-# 4. Compile the source code into an executable
-cmake --build . --config Release
-
-# 5. Deploy Qt Dependencies 
-# (This copies all required Qt DLLs alongside your .exe so it can run)
-C:\Qt\6.11.1\mingw_64\bin\windeployqt.exe --compiler-runtime .\SwaralayaMediaPlayer.exe
-
-# 6. Build the Windows Installer (Optional)
-# (This packages everything into SwaralayaMediaPlayer_Setup.exe)
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" ..\setup.iss
-```
+1. Ensure **CMake**, **Inno Setup 6**, and **Qt 6 (MinGW 64-bit)** are installed.
+2. Double-click the **`build_installer.bat`** file in the project root.
+3. Your installer will be generated in the `Output` directory!
 
 ### How to Compile on Linux (and create `.deb`)
 
